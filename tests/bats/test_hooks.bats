@@ -168,3 +168,37 @@ EOF
   run_hook "$BD" "$(payload_bash "git commit -m message")"
   [ "$status" -eq 0 ]
 }
+
+# ═══════════════════════════════════════════════════════════════
+# block-dangerous — rm flag order and spelling
+# ═══════════════════════════════════════════════════════════════
+
+# The block used to match the literal token "-rf", so the same command spelled
+# with the flags in another order or form passed with exit 0.
+@test "block-dangerous: blocks rm on / ~ /* . whatever the recursive/force flag spelling" {
+  local cmd
+  for cmd in "rm -fr /" "rm -r -f /" "rm -f -r /" "rm --recursive --force /" \
+    "rm -Rf ~" "rm -fR /*" "rm -rf -- /" "rm -r --force ~/" "rm -fr ." "sudo rm -fr /"; do
+    run_hook "$BD" "$(payload_bash "$cmd")"
+    [ "$status" -eq 2 ] || { echo "not blocked: $cmd (exit $status)"; return 1; }
+    [[ "$output" == *"BLOCKED"* ]] || { echo "no BLOCKED message: $cmd"; return 1; }
+  done
+}
+
+@test "block-dangerous: rm without both recursive and force, or on a subpath, is not blocked" {
+  local cmd
+  for cmd in "rm -f /" "rm -r ./build" "rm -fr ./build" "rm -rf /tmp/foo" \
+    "rm --force file.txt" "rm -i -r ." "git rm -r --cached src/"; do
+    run_hook "$BD" "$(payload_bash "$cmd")"
+    [ "$status" -eq 0 ] || { echo "wrongly blocked: $cmd (exit $status)"; return 1; }
+  done
+}
+
+@test "block-dangerous: warns on rm -fr / rm -r -f the same as rm -rf" {
+  local cmd
+  for cmd in "rm -rf ./build" "rm -fr ./build" "rm -r -f ./build" "rm --recursive --force ./build"; do
+    run_hook "$BD" "$(payload_bash "$cmd")"
+    [ "$status" -eq 0 ] || { echo "unexpected exit: $cmd (exit $status)"; return 1; }
+    [[ "$output" == *"WARNING: rm -rf detected"* ]] || { echo "no warning: $cmd"; return 1; }
+  done
+}
