@@ -358,6 +358,20 @@ cursor_merge_hooks_json() {
   echo "$merged" > "$target"
 }
 
+# Uninstall tail: $2 is $1 with our hooks stripped. Remove the file only when
+# nothing but an empty .hooks and the version stamp is left; any other
+# top-level key is the user's, and install merged into the file without a
+# backup, so deleting it would lose that content for good.
+cursor_finish_hooks_json() {
+  local target="$1" cleaned="$2"
+  if jq -e '((.hooks // {}) | length) == 0 and ((keys - ["hooks", "version"]) | length) == 0' \
+    "$cleaned" >/dev/null; then
+    rm -f "$target" "$cleaned"
+  else
+    mv "$cleaned" "$target"
+  fi
+}
+
 global_backup_if_exists() {
   local target="$1"
   local backup_list_name="$2"
@@ -582,14 +596,7 @@ uninstall_cursor() {
       ' "$cleaned" > "$cleaned.2" && mv "$cleaned.2" "$cleaned"
     done <<< "$events"
 
-    # If hooks.json now has no hooks left AND we created it (no user content) → delete
-    local remaining
-    remaining=$(jq '.hooks | length' "$cleaned")
-    if [ "$remaining" -eq 0 ]; then
-      rm -f "$HOOKS_JSON" "$cleaned"
-    else
-      mv "$cleaned" "$HOOKS_JSON"
-    fi
+    cursor_finish_hooks_json "$HOOKS_JSON" "$cleaned"
   fi
 
   # 2. Remove project-owned files from manifest
@@ -719,7 +726,7 @@ uninstall_cursor_global() {
   adapter_remove_manifest_files "$GLOBAL_MANIFEST"
 
   if [ -f "$GLOBAL_HOOKS_JSON" ]; then
-    local events cleaned evt remaining
+    local events cleaned evt
     events=$(jq -r '.hooks_events[]?' "$GLOBAL_MANIFEST")
     cleaned="$GLOBAL_HOOKS_JSON.tmp"
     cp "$GLOBAL_HOOKS_JSON" "$cleaned"
@@ -730,12 +737,7 @@ uninstall_cursor_global() {
         | if (.hooks[$e] | length) == 0 then del(.hooks[$e]) else . end
       ' "$cleaned" > "$cleaned.2" && mv "$cleaned.2" "$cleaned"
     done <<< "$events"
-    remaining=$(jq '.hooks | length' "$cleaned")
-    if [ "$remaining" -eq 0 ]; then
-      rm -f "$GLOBAL_HOOKS_JSON" "$cleaned"
-    else
-      mv "$cleaned" "$GLOBAL_HOOKS_JSON"
-    fi
+    cursor_finish_hooks_json "$GLOBAL_HOOKS_JSON" "$cleaned"
   fi
 
   [ -f "$GLOBAL_AGENTS_FILE" ] && grep -q "$CURSOR_START_MARKER" "$GLOBAL_AGENTS_FILE" 2>/dev/null && run_texttool strip-between-markers --path "$GLOBAL_AGENTS_FILE" --start-marker "$CURSOR_START_MARKER" --end-marker "$CURSOR_END_MARKER" 2>/dev/null || true
