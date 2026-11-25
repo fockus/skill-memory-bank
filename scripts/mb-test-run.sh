@@ -139,13 +139,14 @@ COV_OVERALL="null"
 
 START_MS="$(now_ms)"
 
-# Add one stack's counts to the accumulators; verdict follows the totals.
+# A nonzero exit without a reported test failure invalidates the whole run.
 add_counts() {
   TESTS_TOTAL=$((TESTS_TOTAL + $1))
   TESTS_FAILED=$((TESTS_FAILED + $2))
+  if (( $3 != 0 && $2 == 0 )); then RUNNER_ERROR="true"; fi
   if (( TESTS_TOTAL == 0 )); then
     TESTS_PASS="null"
-  elif (( TESTS_FAILED == 0 )); then
+  elif (( TESTS_FAILED == 0 )) && [[ "$RUNNER_ERROR" == "false" ]]; then
     TESTS_PASS="true"
   else
     TESTS_PASS="false"
@@ -171,22 +172,15 @@ run_python() {
     echo "[warn] pytest importable from neither $DIR/.venv/bin/python nor python3; skipping python run" >&2
     return 0
   fi
-  local log
+  local log rc=0
   log="$(mktemp)"
   # -q: quiet; --tb=line: one-line traceback; -r a: summary for all; -p no:cacheprovider to avoid stale cache.
   # Exit codes: 0 passed, 1 failed, 5 no tests collected.
-  (cd "$DIR" && run_uncolored "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider ${SEL_PY[@]+"${SEL_PY[@]}"}) >"$log" 2>&1 || true
+  (cd "$DIR" && run_uncolored "${pytest_cmd[@]}" -q --tb=line --no-header -r a -p no:cacheprovider ${SEL_PY[@]+"${SEL_PY[@]}"}) >"$log" 2>&1 || rc=$?
   strip_ansi_file "$log"
-  local rc=0
-  # Use grep exit codes to infer.
   # Parse summary line: "X failed, Y passed in Zs" | "N passed in Zs" | "no tests ran".
   local summary
   summary="$(grep -E '^(=+ )?([0-9]+ (failed|passed|error|skipped|warnings)[,]? ?)+.*in [0-9.]+' "$log" | tail -n1 || true)"
-  if [[ -z "$summary" ]]; then
-    # "no tests ran" or similar → leave counts at 0, tests_pass=null.
-    rm -f "$log"
-    return 0
-  fi
 
   local passed failed errors
   passed="$(echo "$summary" | grep -oE '[0-9]+ passed'   | head -n1 | awk '{print $1}' || true)"
@@ -196,7 +190,8 @@ run_python() {
   failed="${failed:-0}"
   errors="${errors:-0}"
 
-  add_counts $((passed + failed + errors)) $((failed + errors))
+  if (( rc == 5 && passed + failed + errors == 0 )); then rc=0; fi
+  add_counts $((passed + failed + errors)) $((failed + errors)) "$rc"
 
   # Extract FAILED lines from pytest short summary:
   # "FAILED tests/foo.py::test_bar - AssertionError: ..."
@@ -216,7 +211,7 @@ run_python() {
   done < <(grep '^FAILED ' "$log" || true)
 
   rm -f "$log"
-  return $rc
+  return 0
 }
 
 run_go() {
@@ -224,11 +219,11 @@ run_go() {
     echo "[warn] go not in PATH; skipping go run" >&2
     return 0
   }
-  local log
+  local log rc=0
   log="$(mktemp)"
   local -a pkgs=(./...)
   [[ "$SELECTION" == "targeted" ]] && pkgs=("${SEL_GO[@]}")
-  (cd "$DIR" && go test "${pkgs[@]}" -v 2>&1) >"$log" || true
+  (cd "$DIR" && go test "${pkgs[@]}" -v 2>&1) >"$log" || rc=$?
 
   local passed failed
   passed="$(grep -cE '^--- PASS:' "$log" || true)"
@@ -236,7 +231,7 @@ run_go() {
   passed="${passed:-0}"
   failed="${failed:-0}"
 
-  add_counts $((passed + failed)) "$failed"
+  add_counts $((passed + failed)) "$failed" "$rc"
 
   # Each "--- FAIL: TestName (0.00s)" line → failure entry.
   while IFS= read -r line; do
@@ -266,14 +261,14 @@ run_bats() {
     NOT_APPLICABLE="true"
     return 0
   }
-  local log
+  local log rc=0
   log="$(mktemp)"
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     file_args+=("$f")
   done <<< "$files"
   [[ "$SELECTION" == "targeted" ]] && file_args=("${SEL_BATS[@]}")
-  (cd "$DIR" && run_uncolored bats "${file_args[@]}") >"$log" 2>&1 || true
+  (cd "$DIR" && run_uncolored bats "${file_args[@]}") >"$log" 2>&1 || rc=$?
   strip_ansi_file "$log"
   local summary total failed
   summary="$(grep -E '^[0-9]+ tests?, [0-9]+ failures?' "$log" | tail -n1 || true)"
@@ -288,7 +283,7 @@ run_bats() {
     total="${total:-0}"
     failed="${failed:-0}"
   fi
-  add_counts "$total" "$failed"
+  add_counts "$total" "$failed" "$rc"
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     local num name rest

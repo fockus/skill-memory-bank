@@ -103,10 +103,13 @@ if path:
 if data is not None:
     dg = data.get("done_gates") or {}
     if isinstance(dg, dict):
-        if "enabled" in dg:
-            enabled = "true" if dg.get("enabled") else "false"
-        if "allow_force" in dg:
-            allow_force = "true" if dg.get("allow_force") else "false"
+        checks, force = dg.get("enabled", True), dg.get("allow_force", True)
+        if isinstance(checks, bool) and isinstance(force, bool):
+            enabled, allow_force = str(checks).lower(), str(force).lower()
+        else:
+            sys.stderr.write("[mb-done-gates][WARN] enabled and allow_force must be booleans; "
+                             "using enabled=true, allow_force=false\n")
+            enabled, allow_force = "true", "false"
         req = dg.get("required")
         if isinstance(req, list) and req:
             required = ",".join(str(r) for r in req)

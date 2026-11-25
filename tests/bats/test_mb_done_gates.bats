@@ -483,6 +483,43 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+@test "done-gates: non-boolean policy runs required checks and rejects force without a NOTE" {
+  _make_test_runner_stub false
+  _make_rules_stub clean
+  printf '# Status: open\n' > "$MB/status.md"
+  local policy
+  for policy in '{allow_force: "false"}' '{enabled: 0, allow_force: true}' '{enabled: false, allow_force: 1}'; do
+    printf 'done_gates: %s\n' "$policy" > "$MB/pipeline.yaml"
+    run_gates --dir "$TMP"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *'"gate":"tests","pass":false,"detail":"tests_pass=false"'* ]]
+
+    run_gates --dir "$TMP" --force --reason "red tests"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *'--force rejected: allow_force is disabled'* ]]
+    [ "$(<"$MB/progress.md")" = '# Progress' ]
+    [ "$(<"$MB/status.md")" = '# Status: open' ]
+  done
+}
+
+@test "done-gates: boolean enabled=false still skips red checks" {
+  _make_test_runner_stub false
+  _make_rules_stub clean
+  printf 'done_gates: {enabled: false}\n' > "$MB/pipeline.yaml"
+  run_gates --dir "$TMP"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'skipping all gates'* ]]
+}
+
+@test "done-gates: omitted boolean keys keep checks and force enabled" {
+  _make_test_runner_stub false
+  _make_rules_stub clean
+  printf 'done_gates: {}\n' > "$MB/pipeline.yaml"
+  run_gates --dir "$TMP" --force --reason "default policy"
+  [ "$status" -eq 0 ]
+  grep -Fq '### NOTE: /mb done --force — gates failed: tests: default policy' "$MB/progress.md"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # I-083 Stage 1 — tests gate fail-closed (null / crash / invalid JSON)
 # ═══════════════════════════════════════════════════════════════

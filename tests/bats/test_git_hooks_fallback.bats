@@ -39,6 +39,10 @@ run_adapter() {
   output="${raw%$'\n'__EXIT__*}"
 }
 
+file_mode() {
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Install
 # ═══════════════════════════════════════════════════════════════
@@ -125,6 +129,35 @@ EOF
   refute_grep -q "memory-bank" "$PROJECT/.git/hooks/post-commit.pre-mb-backup"
 }
 
+check_user_hook_round_trip() {
+  local mode="$1" expected_output="$2" hook="$PROJECT/.git/hooks/pre-commit" action original actual
+  printf '#!/bin/sh\necho user-hook-ran\n' > "$hook"
+  chmod "$mode" "$hook"
+  snapshot "$hook" "$PROJECT/original"
+
+  for action in install install uninstall; do
+    bash "$ADAPTER" "$action" "$PROJECT"
+    if [ "$action" = install ]; then
+      original="$hook.pre-mb-backup"
+      [ -x "$hook" ]
+    else
+      original="$hook"
+    fi
+    actual=$(git -C "$PROJECT" -c advice.ignoredHook=false hook run --ignore-missing pre-commit 2>&1)
+    [ "$actual" = "$expected_output" ]
+    assert_unchanged "$original" "$PROJECT/original"
+    [ "$(file_mode "$original")" = "$mode" ]
+  done
+}
+
+@test "git-hooks: disabled user pre-commit stays disabled through install, reinstall and uninstall" {
+  check_user_hook_round_trip 640 ""
+}
+
+@test "git-hooks: executable user pre-commit keeps its mode and runs through install, reinstall and uninstall" {
+  check_user_hook_round_trip 750 user-hook-ran
+}
+
 # A16 (M-8): install respects `core.hooksPath` — a repo that redirects hooks
 # to a custom directory must get the MB hooks wired THERE, not silently into
 # the default .git/hooks (which git would never invoke).
@@ -163,16 +196,22 @@ EOF
 @test "git-hooks: hook rewrite replaces the inode (atomic mv), not an in-place truncate (A16)" {
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
-  local inode_stat
   inode_stat() { stat -f%i "$1" 2>/dev/null || stat -c%i "$1"; }
-  local inode_before
-  inode_before=$(inode_stat "$PROJECT/.git/hooks/post-commit")
+  local hook="$PROJECT/.git/hooks/post-commit" inode_before
+  inode_before=$(inode_stat "$hook")
+  snapshot "$hook" "$PROJECT/expected"
+  echo '# stale wrapper' >> "$hook"
+  chmod 750 "$hook"
+  chmod 640 "$PROJECT/.git/hooks/pre-commit"
 
   run_adapter install "$PROJECT"
   [ "$status" -eq 0 ]
   local inode_after
-  inode_after=$(inode_stat "$PROJECT/.git/hooks/post-commit")
+  inode_after=$(inode_stat "$hook")
   [ "$inode_before" != "$inode_after" ]
+  assert_unchanged "$hook" "$PROJECT/expected"
+  [ "$(file_mode "$hook")" = 750 ]
+  [ -x "$PROJECT/.git/hooks/pre-commit" ]
 }
 
 @test "git-hooks: install does not leave a stray tmp file after writing hooks (A16 atomic write)" {

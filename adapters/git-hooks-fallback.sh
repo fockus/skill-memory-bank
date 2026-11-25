@@ -283,13 +283,15 @@ install_one_hook() {
   local name="$1" body_fn="$2"
   local target="$HOOKS_DIR/$name"
   local backup="$HOOKS_DIR/$name.pre-mb-backup"
+  local mode=""
 
   # If target exists and is NOT our managed hook, back it up (unless backup already exists)
   if [ -f "$target" ] && ! grep -q "memory-bank: managed hook" "$target" 2>/dev/null; then
     if [ ! -f "$backup" ]; then
       mv "$target" "$backup"
-      chmod +x "$backup"
     fi
+  elif [ -f "$target" ] && [ ! -L "$target" ] && [ -x "$target" ]; then
+    mode="$(mb_file_mode "$target")"
   fi
 
   # Write our hook — A16 (M-8): atomic tmp (same dir, BSD-safe trailing-X
@@ -298,7 +300,7 @@ install_one_hook() {
   local tmp
   tmp=$(mktemp "$HOOKS_DIR/.$name.XXXXXXXX")
   $body_fn > "$tmp"
-  chmod +x "$tmp"
+  chmod "${mode:-+x}" "$tmp"
   mv "$tmp" "$target"
 }
 
