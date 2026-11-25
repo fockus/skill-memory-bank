@@ -1,7 +1,7 @@
 ---
 type: feature
 topic: agent-retrieval-routing
-status: in_progress
+status: done
 depends_on: []
 parallel_safe: false
 linked_specs: []

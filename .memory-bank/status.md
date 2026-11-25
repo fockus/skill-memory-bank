@@ -1,7 +1,7 @@
 # claude-skill-memory-bank: Статус проекта
 
-**Current phase:** экономия усилий закрыта 2026-10-07 (5 уровней задачи + роутинг, тон по модели, пресеты simple/medium/complex/governed + cost tiers, настройки качества проекта, ADaPT-lite, Key rules onboarding, диета always-loaded, `anthropic-skill-guide-compliance` Sprint 2); открыт только `proportional-effort` Sprint 2 Stage 4 (замер «после», AGR-072). `graph-semantic-adoption` 9/11; Pi native integration 0/5 accepted. `/mb drive` закрыт (`drive-autopilot` 7/7, `drive-loop` superseded, 2026-11-18). Живые треки: I-086 `config-validation-docs` (Stages 3–6), `sdd-vision-pipeline` G-001 (пауза с 2026-07-27).
-**Focus:** master-completion closed 2026-11-19 ([plan](plans/done/2026-11-18_feature_master-completion.md), AGR-101…108): 22/22 stages; deferred — I-293, I-299, I-303 (graph re-measure 2026-11-26), I-304, I-305. Next: the rest of `sdd-vision-pipeline` (S1/S2/S3/S6/S9 + umbrella) in unfinished-work-completion; G-001 parked (AGR-106). Local main is behind origin by 10 commits (CI fixes from another session) — merge pending.
+**Current phase:** multilingual local project code RAG, agent retrieval routing, and bounded automatic refresh completed 2026-11-25 (AGR-111…114). Existing live tracks remain long-running sessions Phase 4–6, I-086 `config-validation-docs` Stages 3–6, Pi native integration Stage 5, proportional-effort Sprint 2 Stage 4, and Codex memory parity; G-001 remains paused.
+**Focus:** resume the pre-existing active roadmap after closing the three RAG plans. No release or global installation is part of this work.
 **Blockers:** нет для текущей работы; действует репо-wide FREEZE на деструктивные git-операции (rebase / `reset --hard` / `checkout .` / whole-tree stash) — см. `COORDINATION.md`.
 
 ## Pi native integration — 2026-10-05
@@ -14,6 +14,7 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 
 - VERSION: **5.4.2**; scripts: 42 sh / 9 py; hooks: 10; agents: 17 dispatchable + partials; commands: 24
 - Tests (baseline 2026-06-10): pytest 1190 / bats 779, 0 failed — свежие числа по сессиям в `progress.md`
+- RAG closure verification 2026-11-25: independent installed-wheel recheck PASS; Bats 4156 passed / 16 skipped; pytest 5219 passed / 22 skipped / 6 timeouts (all six passed on serial rerun). The separate `/mb done` test gate returned red; see the override record in `progress.md`.
 - Audit fixes 2026-09-14: R01–R15 закрыты; полный pytest **2614 passed, 1 skipped**, связанные Bats/linters/wheel smoke прошли; независимая проверка 6/6 этапов ([отчёт](reports/2026-09-14_skill-audit-remediation.md)).
 - Site: https://fockus.github.io/skill-memory-bank/ · remote: `fockus/skill-memory-bank`
 - Last compact: 2026-09-10 (`actualize --strict`, AGR-043 — 10 секций архивировано в `progress.md`)
@@ -34,14 +35,14 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - [2026-10-05] [plans/2026-10-05_feature_pi-native-integration.md](plans/2026-10-05_feature_pi-native-integration.md) — Pi native Memory Bank integration — Implementation Plan
 - [2026-10-07] [plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md](plans/2026-10-07_fix_proportional-effortsprint2-execution-economy.md) — fix — proportional-effort · Sprint 2 «экономия исполнения: целевые тесты, тон по модели, замер»
 - [2026-10-09] [plans/2026-10-09_feature_codex-memory-parity.md](plans/2026-10-09_feature_codex-memory-parity.md) — Codex memory and lifecycle completion
-- [2026-11-24] [plans/2026-11-24_feature_project-code-rag.md](plans/2026-11-24_feature_project-code-rag.md) — feature — project-code-rag
-- [2026-11-25] [plans/2026-11-25_feature_agent-retrieval-routing.md](plans/2026-11-25_feature_agent-retrieval-routing.md) — feature — agent-retrieval-routing
-- [2026-11-25] [plans/2026-11-25_feature_bounded-rag-refresh.md](plans/2026-11-25_feature_bounded-rag-refresh.md) — feature — bounded-rag-refresh
 <!-- /mb-active-plans -->
 
 ## Recently done (last 10)
 
 <!-- mb-recent-done -->
+- 2026-11-25 — [plans/done/2026-11-25_feature_bounded-rag-refresh.md](plans/done/2026-11-25_feature_bounded-rag-refresh.md) — feature — bounded-rag-refresh
+- 2026-11-25 — [plans/done/2026-11-25_feature_agent-retrieval-routing.md](plans/done/2026-11-25_feature_agent-retrieval-routing.md) — feature — agent-retrieval-routing
+- 2026-11-25 — [plans/done/2026-11-24_feature_project-code-rag.md](plans/done/2026-11-24_feature_project-code-rag.md) — feature — project-code-rag
 - 2026-11-19 — [plans/done/2026-11-18_feature_master-completion.md](plans/done/2026-11-18_feature_master-completion.md) — feature — master-completion
 - 2026-11-19 — [plans/done/2026-09-24_fix_opus55-prompt-fit.md](plans/done/2026-09-24_fix_opus55-prompt-fit.md) — fix — opus55-prompt-fit · скил под Opus 5.5 / Fable 5.1 и любые агенты
 - 2026-11-19 — [plans/done/2026-07-28_fix_graph-semantic-adoption.md](plans/done/2026-07-28_fix_graph-semantic-adoption.md) — fix — graph-semantic-adoption
@@ -49,9 +50,6 @@ Historical execution checkpoints → `progress.md` § [status archive] Pi native
 - 2026-11-18 — [plans/done/2026-10-09_fix_codex-global-native-hooks.md](plans/done/2026-10-09_fix_codex-global-native-hooks.md) — fix — codex-global-native-hooks
 - 2026-11-18 — [plans/done/2026-05-24_fix_cursor-compatibility-remediation.md](plans/done/2026-05-24_fix_cursor-compatibility-remediation.md) — Cursor Compatibility Remediation
 - 2026-11-18 — [plans/done/2026-09-24_fix_command-skill-root-paths.md](plans/done/2026-09-24_fix_command-skill-root-paths.md) — fix — command-skill-root-paths
-- 2026-11-17 — [plans/done/2026-11-17_feature_team-shared-gates.md](plans/done/2026-11-17_feature_team-shared-gates.md) — feature — team-shared-gates
-- 2026-10-08 — [plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md](plans/done/2026-10-08_fix_ordinary-pi-mb-dispatch.md) — Ordinary Pi Memory Bank dispatch
-- 2026-10-08 — [plans/done/2026-10-07_fix_upgrade-safe-install.md](plans/done/2026-10-07_fix_upgrade-safe-install.md) — fix — установка поверх старой версии + хвосты I-249…I-254
 <!-- /mb-recent-done -->
 
 ## Roadmap (high level)

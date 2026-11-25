@@ -5427,3 +5427,52 @@ All 15 failing tests now pass. Evidence: after the fixes, test_global_prompt_gua
 - Skill reinstalled from c499012 for claude-code, cursor, codex, opencode, pi (rc=0).
 - Open elsewhere: lock bugs on debug/locks; OpenCode 2.3 subagent issues; bats flake "MB_TEST_COMMAND exit 7" (diagnostics f233642, CI pending).
 - Next step: confirm f233642 CI; decide local done-gates scope.
+
+## 2026-11-24
+
+### Auto-capture (oc-ses_df39)
+- OpenCode session observed; use /mb update to record decisions and unfinished work.
+
+## 2026-11-25
+
+### Auto-capture 2026-11-25 (git-95339f8b)
+- Session ended without an explicit /mb done (git post-commit fallback)
+- Commit SHA: 95339f8b
+- Details will be restored during the next /mb start
+
+## 2026-11-25
+
+### Auto-capture 2026-11-25 (git-5ac31331)
+- Session ended without an explicit /mb done (git post-commit fallback)
+- Commit SHA: 5ac31331
+- Details will be restored during the next /mb start
+
+### NOTE: /mb done --force — gates failed: tests: full gate returned tests_pass=false without details; 4156 Bats and 5219 pytest passed, six pytest timeouts passed serially, independent installed-wheel verifier PASS
+
+## 2026-11-25
+
+### Project code RAG and bounded refresh
+- Shipped opt-in multilingual project code retrieval with Qwen3/QMD and Perplexity ONNX Q4, project-scoped tracked-source indexes, agent routing, startup offers, actionable notices, and safe status handling.
+- Added AGR-114 bounded automatic refresh: 120-second quiet window, 900-second cooldown, one writer, 180-second process-tree deadline, a 32-vector cap, embedding reuse, immediate graph/text fallback, and no unattended setup, download, or repair.
+- Fixed nested repository isolation, damaged-model and row-map handling, root update notices, QMD token-split limits, runner crash reporting, strict YAML force permission, and preservation of user Git-hook permissions.
+- Verification: independent installed-wheel recheck PASS (690 hashes; 23 files matched); retrieval 8/16 top-1 and 14/16 top-5; graph 18/18 plus 4/4; Bats 4156 passed, pytest 5219 passed, Node 98/98, e2e/hooks 357/357, focused status/refresh 31/31, and CI-scope static checks clean. Six pytest timeouts passed unchanged when rerun serially.
+- Closure: local commits 95339f8 and 5ac3133 only; no push, PR, release, or global install. The owner-approved forced gate record and its detail file remain the authoritative explanation for `tests_pass=false`. Next step: resume the pre-existing active roadmap without starting or closing any unrelated plan.
+
+## [checklist archive] 2026-11-25 — 2026-11-24_feature_project-code-rag.md
+
+<!-- mb-plan:2026-11-24_feature_project-code-rag.md -->
+## project-code-rag — 1/1
+- ✅ Stage 1 — Ship both providers and the project setup/search lifecycle
+
+## [checklist archive] 2026-11-25 — 2026-11-25_feature_agent-retrieval-routing.md
+
+<!-- mb-plan:2026-11-25_feature_agent-retrieval-routing.md -->
+## agent-retrieval-routing — 2/2
+- ✅ Stage 1 — Wire retrieval options through real agent entry points and verify their use
+- ✅ Stage 2 — Project onboarding and actionable release notices (AGR-113)
+
+## [checklist archive] 2026-11-25 — 2026-11-25_feature_bounded-rag-refresh.md
+
+<!-- mb-plan:2026-11-25_feature_bounded-rag-refresh.md -->
+## bounded-rag-refresh — 1/1
+- ✅ Stage 1 — Bounded incremental refresh for an enrolled worktree

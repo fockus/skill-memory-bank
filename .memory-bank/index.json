@@ -487,6 +487,28 @@
       "archived": false
     },
     {
+      "path": "notes/2026-09-21_1722_codex-hooksjson-schema-wrong-casingextra-fields-ca.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "- Codex CLI 0.144.1 silently ignores `~/.codex/hooks.json` when the schema is off — no error, no log, the hook just never fires. - Two independent root causes found: (1) event key must be exact-case `UserPromptSubmit` with a nested `hooks` array, not lowercase `userpromptsubmit`; (2) any extra top-level field (`version`, `_mb_warning`) makes Codex skip the whole file, not just the unknown field.",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-09-21_1722_pytest-full-suite-run-leaks-a-write-into-the-real.md",
+      "type": "note",
+      "tags": [
+        "session-memory"
+      ],
+      "importance": "medium",
+      "summary": "- Running the full suite (`pytest`, 2614 passed) in this repo caused some test to regenerate `.memory-bank/traceability.md` directly in the live bank instead of an isolated tmp copy — caught only because the commit script refused to proceed on an unexpected uncommitted change. - The mutation itself was correct (added a new test's row) but the offending test was never identified.",
+      "has_private": false,
+      "archived": false
+    },
+    {
       "path": "notes/2026-09-30_mutation-testing-stale-pyc.md",
       "type": "note",
       "tags": [
@@ -499,94 +521,125 @@
       "summary": "AGR-027 mutation proof (`cp` backup → mutate → run → `cp` restore → `cmp`) has a Python-specific hole. If the mutant keeps the file SIZE and the restore lands in the same mtime SECOND, the interpreter's",
       "has_private": false,
       "archived": false
+    },
+    {
+      "path": "notes/2026-11-20_03-32_new-script-doc-row-and-local-gates.md",
+      "type": "pattern",
+      "tags": [
+        "script",
+        "doc-count",
+        "done-gate",
+        "ci",
+        "macos"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-11-20 03:32 - Added scripts/mb_work_active.py; test_doc_counts failed until references/scripts.md got its row (I-308, fixed in c499012).",
+      "has_private": false,
+      "archived": false
+    },
+    {
+      "path": "notes/2026-11-25_18-34_project-code-rag-and-bounded-refresh.md",
+      "type": "pattern",
+      "tags": [
+        "rag",
+        "retrieval",
+        "qwen3",
+        "perplexity",
+        "refresh",
+        "embedding"
+      ],
+      "importance": "high",
+      "summary": "Date: 2026-11-25 18:34 - Added opt-in multilingual project retrieval with Qwen3/QMD and Perplexity ONNX Q4.",
+      "has_private": false,
+      "archived": false
     }
   ],
   "lessons": [],
-  "generated_at": "2026-11-17T11:12:07Z",
+  "generated_at": "2026-11-25T15:35:27Z",
   "progress_chain": {
     "version": 1,
     "tail": [
       {
-        "heading": "## 2026-10-05 — Managed SDK continuation timed out; WIP preserved",
-        "sha256": "b99ee1df0c03a965ece0c8968034721274c4b0a6c2c93160aded0faf965f41ed"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track A2 (DONE)",
+        "sha256": "87fc0954406c97739f308c38a7ffb0e80563901ac7308303e79d36e6a1322b1b"
       },
       {
-        "heading": "## 2026-10-05 — Owner approved bounded retained Stage 1 recovery",
-        "sha256": "2b80f117dc533c4a9de4c98c12135ed0b34c7b35671402b43ca31a794bf857fb"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track E2 (DONE_WITH_CONCERNS)",
+        "sha256": "5f51c6df93b7d88bc27eea1935d452b5001a80f9858675bcb0f510afc3575277"
       },
       {
-        "heading": "## 2026-10-05 — Bounded Stage 1 native recovery launched",
-        "sha256": "955d902791f13865b08f5d0075e2954ec34685a099af89f928f4240ab8a57f2e"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track F1 (DONE_WITH_CONCERNS)",
+        "sha256": "00c21a43d1d6b4e1e3c353ef1fe2a0d1c4621fe4f44caf698adda8ef08d04ac9"
       },
       {
-        "heading": "## 2026-10-05 — Bounded green checkpoint and public leaf evidence decision",
-        "sha256": "837bb0ea4500c83f94e2cacbbfcc8e88b4c98d77148efc005e321749c4a381e8"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track C (DONE)",
+        "sha256": "8561ed48b4a7931f6ed71d31c750b062c073bb7c2ea6878b30bd7880457c6ed6"
       },
       {
-        "heading": "## 2026-10-05 — Bounded writer BLOCKED; parent emit failure preserved",
-        "sha256": "c408b526e11c314f76dc7e1bee782cd560061f4ab8b20a5cc9848220d3474f61"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track B2 (DONE_WITH_CONCERNS)",
+        "sha256": "442aadfe268386058ff11ad0c6a20f969688e4fa4a2ec692199277e6daff452c"
       },
       {
-        "heading": "## 2026-10-05 — AGR-059 isolated native-leaf probe authorized",
-        "sha256": "4d454eca70d099e9d362b84ed55e16abbd222bbe4a650c89d3333529eb24fbb2"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track G2 (DONE_WITH_CONCERNS)",
+        "sha256": "33857a354d088dc7ba89ba25a459760dfdebbb199b9d57ed7c13afa7351238fd"
       },
       {
-        "heading": "## 2026-10-05 — AGR-059 isolated actual-leaf native probe launched",
-        "sha256": "70a9eeee6470de1249639c9f58bbd4c21f7090a6a3579a30b59dbbfdca2043c5"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track F2 (DONE_WITH_CONCERNS)",
+        "sha256": "fc24516a9b58c462a740bca28e1b10b43c5c5317ab609f6257271f88ef0e2157"
       },
       {
-        "heading": "## 2026-10-05 — Child guard preserved; legitimate operator test context confirmed",
-        "sha256": "d4a17f2ac73448af1f07d5c38384b175e40e8362672ae2371378d37965680f38"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track H2 (DONE)",
+        "sha256": "ddb630673524cb680ecf97307516e28a6a5af97fb546f046adc9f97ae0893ba7"
       },
       {
-        "heading": "## 2026-10-05 — Parent model/routing prerequisites observed; fixture preparation handoff",
-        "sha256": "38678e23acac143b923c2d664ab2d9f4f8b65114e9a70905beee1604dcbbd388"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track H1 (DONE)",
+        "sha256": "9014604068dcd763452c626314b5e3e956874b1bd8a593d7ef2251aef4c2e1a8"
       },
       {
-        "heading": "## 2026-10-05 — Retained fixture preparation launched with observed prerequisites",
-        "sha256": "2b531f32128306c817a16b0919add60bbd87bfed45c684651310cbf833d96c65"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track F3a (DONE_WITH_CONCERNS)",
+        "sha256": "5bf89615c941cfb658867c179ed6d38217047566349451b477df71507ad8b15e"
       },
       {
-        "heading": "## 2026-10-05 — Parent actual SDK zero-child control reaches leaf-contract RED",
-        "sha256": "c84ccd5b4e44b0a586e6540e6dfc2a3bee6d4569d3fc28775b85088e1da364fa"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track B3 (DONE_WITH_CONCERNS)",
+        "sha256": "ad63459b14ead831e372a99add594dc1f995ce3b2ec34f391a26dcbc85fbdc95"
       },
       {
-        "heading": "## 2026-10-05 — Actual Tintin controlled leaf passes in parent; Nico public observation gap remains",
-        "sha256": "653dfdf4a992121965a647840b3db315c27d30a0e13e85226c1b5a5babb03ce0"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track A3 (DONE)",
+        "sha256": "3d601b7f927906d8005c36c94ab3af99c5db16b97504a5e74962a3506faaed43"
       },
       {
-        "heading": "## 2026-10-06",
-        "sha256": "1233dd1cc95c58428ac24f6938ccd47448c3a7fab0aeff35a5bdc7810e538b46"
+        "heading": "## 2026-11-18 — team master-completion-wave1 · track B4 (DONE)",
+        "sha256": "96087d5e775fc3a39870ee1f3276e0bcb4055d9b4ffa1f8e9a07451b3e375a02"
       },
       {
-        "heading": "## 2026-10-06",
-        "sha256": "0bfdc954796f3ac843d22d1d76b341156e10f3311af918c16a7632062618119d"
+        "heading": "## 2026-11-19 — team master-completion-wave1 · track F3b (DONE)",
+        "sha256": "e448193d750aa4543c3eb180bd969528fe3b748ba7ad3ebf0395e7fa10427d68"
       },
       {
-        "heading": "## 2026-10-06",
-        "sha256": "1620be087a2453ab2853d30a8681b730505710d033fb6807553ff595c534003c"
+        "heading": "## 2026-11-19 — team master-completion-wave1 · track Z (DONE_WITH_CONCERNS)",
+        "sha256": "5a48aeafcd4f2d639d19a142f6439c99d8262860051c5f5988b142ea83ee8754"
       },
       {
-        "heading": "## 2026-10-06",
-        "sha256": "ef3f75fb1a28adee80aa4297bd26d9b09d7ff452511e0fba1db209987b5d9477"
+        "heading": "## 2026-11-20",
+        "sha256": "a3f4bb910461865157121f51c0205a97f2ac26e1da8356f8ee8a4782358d6317"
       },
       {
-        "heading": "## 2026-10-07",
-        "sha256": "35fff5b893a5d861c89b56935f5e32057d8eb2e5a3dd6de2d6f2804d8392d931"
+        "heading": "## 2026-11-24",
+        "sha256": "85694a88e6febd50cdaf08d0e6d5330ecbc3dca8fdb67cdc3f592ed36229d874"
       },
       {
-        "heading": "## 2026-10-07",
-        "sha256": "794ec58669252b9035d642e94e021a327231cc58625c079c0a3d4aec0eaacfae"
+        "heading": "## 2026-11-25",
+        "sha256": "bf963c11bbbb82167b0a3566e00b36ab16ecc25f00c351a16c393502fe016008"
       },
       {
-        "heading": "## 2026-10-07",
-        "sha256": "6b40199bdbdce83a4848ad902ef18831c84daa9a2e435c55002efbbc9809ecfc"
+        "heading": "## 2026-11-25",
+        "sha256": "1125bb1fa4072779a52a86310abe42e2f20b9cc350ae3294a3cf82a6d86dfa4b"
       },
       {
-        "heading": "## 2026-10-08 — установка поверх старой версии + хвосты I-249…I-254",
-        "sha256": "f848c61478cad60cd5b28f8b76fa44fe589574b3351d85aee8e922c1c45f333a"
+        "heading": "## 2026-11-25",
+        "sha256": "36c56ccf393c8f0ab3caa75cdd2f55413c7005e0847af94f884bea8cdaebe434"
       }
     ],
-    "last_synced_at": "2026-10-07T22:23:29Z"
+    "last_synced_at": "2026-11-25T15:35:27Z"
   }
 }
